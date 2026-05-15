@@ -1,0 +1,10 @@
+*.exe
+*.dll
+*.pdb
+*.lib
+bin/
+lib/
+notes.txt
+.zig-cache/
+zig-out/
+zig-pkg
