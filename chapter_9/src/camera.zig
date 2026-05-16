@@ -10,6 +10,8 @@ const Point3 = @import("vec3.zig").Point3;
 const Vec3 = @import("vec3.zig").Vec3;
 
 pub const Camera = struct {
+    const Self = @This();
+
     aspectRatio: f64 = 1.0, // Ratio of image width over height
     imageWidth: usize = 100, // Rendered image width in pixel count
     samplesPerPixel: usize = 10, // Count of random samples for each pixel
@@ -21,7 +23,7 @@ pub const Camera = struct {
     pixelDeltaV: Vec3, // Offset to pixel below
     prng: std.Random.DefaultPrng, // Pseudo random number generator
 
-    pub fn render(self: *Camera, io: std.Io, writer: *std.Io.Writer, world: *const Hittable) !void {
+    pub fn render(self: *Self, io: std.Io, writer: *std.Io.Writer, world: *const Hittable) !void {
         self.init(io);
 
         try writer.print("P3\n{} {}\n255\n", .{ self.imageWidth, self.imageHeight });
@@ -47,7 +49,7 @@ pub const Camera = struct {
         std.log.info("\rDone.\n", .{});
     }
 
-    fn init(self: *Camera, io: std.Io) void {
+    fn init(self: *Self, io: std.Io) void {
         const seed: u64 = @intCast(std.Io.Clock.real.now(io).toMilliseconds());
         self.prng = std.Random.DefaultPrng.init(seed);
 
@@ -90,7 +92,7 @@ pub const Camera = struct {
             .add(self.pixelDeltaU.add(self.pixelDeltaV).scale(0.5));
     }
 
-    fn getRay(self: *Camera, i: usize, j: usize) Ray {
+    fn getRay(self: *Self, i: usize, j: usize) Ray {
         // construct a camaera ray originating from the origin and directed at randomly sampled
         // point around the pixel location i, j.
         const offset = self.sampleSquare();
@@ -105,7 +107,7 @@ pub const Camera = struct {
         return Ray.init(origin, direction);
     }
 
-    fn sampleSquare(self: *Camera) Vec3 {
+    fn sampleSquare(self: *Self) Vec3 {
         // returns the vector to a random point in the [-.5, -.5]-[+.5, +.5] unit square.
         var random = self.prng.random();
 

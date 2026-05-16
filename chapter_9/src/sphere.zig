@@ -5,17 +5,19 @@ const Point3 = @import("vec3.zig").Point3;
 const Ray = @import("ray.zig").Ray;
 
 pub const Sphere = struct {
+    const Self = @This();
+
     center: Point3,
     radius: f64,
 
-    pub fn init(center: Point3, radius: f64) Sphere {
+    pub fn init(center: Point3, radius: f64) Self {
         return .{
             .center = center,
             .radius = @max(0, radius),
         };
     }
 
-    pub fn hittable(self: *const Sphere) Hittable {
+    pub fn hittable(self: *const Self) Hittable {
         return .{
             .ptr = self,
             .hitFn = hit,
@@ -28,7 +30,7 @@ pub const Sphere = struct {
         ray_t: Interval,
         rec: *HitRecord,
     ) bool {
-        const self: *const Sphere = @ptrCast(@alignCast(ptr));
+        const self: *const Self = @ptrCast(@alignCast(ptr));
 
         const oc = self.center.sub(r.origin);
         const a = r.direction.lengthSquared();

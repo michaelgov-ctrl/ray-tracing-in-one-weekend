@@ -6,13 +6,15 @@ const Point3 = @import("vec3.zig").Point3;
 const Interval = @import("interval.zig").Interval;
 
 pub const HitRecord = struct {
+    const Self = @This();
+
     p: Point3,
     normal: Vec3,
     t: f64,
     frontFace: bool,
 
     pub fn setFaceNormal(
-        self: *HitRecord,
+        self: *Self,
         r: Ray,
         outwardNormal: Vec3,
     ) void {
@@ -25,6 +27,8 @@ pub const HitRecord = struct {
 };
 
 pub const Hittable = struct {
+    const Self = @This();
+
     ptr: *const anyopaque,
     hitFn: *const fn (
         ptr: *const anyopaque,
@@ -34,7 +38,7 @@ pub const Hittable = struct {
     ) bool,
 
     pub fn hit(
-        self: Hittable,
+        self: Self,
         r: Ray,
         ray_t: Interval,
         rec: *HitRecord,
@@ -49,11 +53,13 @@ pub const Hittable = struct {
 };
 
 pub const HittableList = struct {
+    const Self = @This();
+
     objects: std.ArrayList(Hittable),
 
     pub fn init(
         allocator: std.mem.Allocator,
-    ) !HittableList {
+    ) !Self {
         return .{
             .objects = try std.ArrayList(Hittable).initCapacity(
                 allocator,
@@ -63,25 +69,25 @@ pub const HittableList = struct {
     }
 
     pub fn deinit(
-        self: *HittableList,
+        self: *Self,
         allocator: std.mem.Allocator,
     ) void {
         self.objects.deinit(allocator);
     }
 
-    pub fn clear(self: *HittableList) void {
+    pub fn clear(self: *Self) void {
         self.objects.clearRetainingCapacity();
     }
 
     pub fn add(
-        self: *HittableList,
+        self: *Self,
         allocator: std.mem.Allocator,
         obj: Hittable,
     ) !void {
         try self.objects.append(allocator, obj);
     }
 
-    pub fn hittable(self: *const HittableList) Hittable {
+    pub fn hittable(self: *const Self) Hittable {
         return .{
             .ptr = self,
             .hitFn = hit,
@@ -94,7 +100,7 @@ pub const HittableList = struct {
         ray_t: Interval,
         rec: *HitRecord,
     ) bool {
-        const self: *const HittableList = @ptrCast(@alignCast(ptr));
+        const self: *const Self = @ptrCast(@alignCast(ptr));
 
         var temp_rec: HitRecord = undefined;
         var hit_anything = false;
