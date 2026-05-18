@@ -11,6 +11,21 @@ pub const Vec3 = struct {
         return .{ .x = x, .y = y, .z = z };
     }
 
+    pub fn neg(self: Self) Vec3 {
+        return .{
+            .x = -self.x,
+            .y = -self.y,
+            .z = -self.z,
+        };
+    }
+
+    pub fn nearZero(self: Self) bool {
+        const s = 1e-8;
+        return (@abs(self.x) < s) and
+            (@abs(self.y) < s) and
+            (@abs(self.z) < s);
+    }
+
     pub fn add(self: Self, v: Vec3) Vec3 {
         return .{
             .x = self.x + v.x,
@@ -27,11 +42,11 @@ pub const Vec3 = struct {
         };
     }
 
-    pub fn neg(self: Self) Vec3 {
+    pub fn mul(self: Self, v: Vec3) Vec3 {
         return .{
-            .x = -self.x,
-            .y = -self.y,
-            .z = -self.z,
+            .x = self.x * v.x,
+            .y = self.y * v.y,
+            .z = self.z * v.z,
         };
     }
 
@@ -51,6 +66,14 @@ pub const Vec3 = struct {
         return self.x * v.x +
             self.y * v.y +
             self.z * v.z;
+    }
+
+    pub fn cross(self: Self, v: Vec3) Vec3 {
+        return .{
+            .x = self.y * v.z - self.z * v.y,
+            .y = self.z * v.x - self.x * v.z,
+            .z = self.x * v.y - self.y * v.x,
+        };
     }
 
     pub fn lengthSquared(self: Self) f64 {
@@ -100,12 +123,10 @@ pub const Vec3 = struct {
         return if (self.dot(onUnitSphere) > 0.0) onUnitSphere else onUnitSphere.neg();
     }
 
-    pub fn cross(self: Self, v: Vec3) Vec3 {
-        return .{
-            .x = self.y * v.z - self.z * v.y,
-            .y = self.z * v.x - self.x * v.z,
-            .z = self.x * v.y - self.y * v.x,
-        };
+    pub fn reflect(self: Self, n: Vec3) Vec3 {
+        return self.sub(
+            n.scale(2 * self.dot(n)),
+        );
     }
 };
 

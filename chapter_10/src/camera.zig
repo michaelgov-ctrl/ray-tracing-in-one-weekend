@@ -3,6 +3,7 @@ const color = @import("color.zig");
 
 const Color = color.Color;
 const Ray = @import("ray.zig").Ray;
+const Material = @import("material.zig").Material;
 const Interval = @import("interval.zig").Interval;
 const Hittable = @import("hittable.zig").Hittable;
 const HitRecord = @import("hittable.zig").HitRecord;
@@ -124,9 +125,10 @@ pub const Camera = struct {
     }
 
     fn rayColor(rng: std.Random, r: Ray, depth: i64, world: *const Hittable) Color {
+        // if we've exceeded the ray bounce limit, no more light is gathered.
         if (depth <= 0) return Color.init(0.0, 0.0, 0.0);
 
-        var rec = std.mem.zeroes(HitRecord);
+        var rec: HitRecord = undefined;
 
         // ignore hits within 0.001 of the calculated intersection point
         if (world.hit(
@@ -134,14 +136,11 @@ pub const Camera = struct {
             Interval.init(0.001, std.math.inf(f64)),
             &rec,
         )) {
-            //return rec.normal.add(Color.init(1, 1, 1)).scale(0.5);
-            const dir = rec.normal.add(Vec3.randomUnitVector(rng));
-            return rayColor(
-                rng,
-                Ray.init(rec.p, dir),
-                depth - 1,
-                world,
-            ).scale(0.5);
+            if (rec.mat.scatter(rng, r, rec)) |scatter| {
+                return scatter.attenuation.mul(
+                    rayColor(rng, scatter.scattered, depth - 1, world),
+                );
+            }
         }
 
         const unitDirection = r.direction.unitVector();

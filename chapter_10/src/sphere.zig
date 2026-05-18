@@ -1,6 +1,7 @@
 const HitRecord = @import("hittable.zig").HitRecord;
 const Hittable = @import("hittable.zig").Hittable;
 const Interval = @import("interval.zig").Interval;
+const Material = @import("material.zig").Material;
 const Point3 = @import("vec3.zig").Point3;
 const Ray = @import("ray.zig").Ray;
 
@@ -9,11 +10,17 @@ pub const Sphere = struct {
 
     center: Point3,
     radius: f64,
+    mat: Material,
 
-    pub fn init(center: Point3, radius: f64) Self {
+    pub fn init(
+        center: Point3,
+        radius: f64,
+        mat: Material,
+    ) Self {
         return .{
             .center = center,
             .radius = @max(0, radius),
+            .mat = mat,
         };
     }
 
@@ -53,6 +60,7 @@ pub const Sphere = struct {
         rec.p = r.at(root);
         const outwardNormal = rec.p.sub(self.center).div(self.radius);
         rec.setFaceNormal(r, outwardNormal);
+        rec.mat = self.mat;
 
         return true;
     }

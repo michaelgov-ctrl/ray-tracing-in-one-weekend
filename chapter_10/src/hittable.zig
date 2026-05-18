@@ -4,6 +4,7 @@ const Ray = @import("ray.zig").Ray;
 const Vec3 = @import("vec3.zig").Vec3;
 const Point3 = @import("vec3.zig").Point3;
 const Interval = @import("interval.zig").Interval;
+const Material = @import("material.zig").Material;
 
 pub const HitRecord = struct {
     const Self = @This();
@@ -12,6 +13,7 @@ pub const HitRecord = struct {
     normal: Vec3,
     t: f64,
     frontFace: bool,
+    mat: Material,
 
     pub fn setFaceNormal(
         self: *Self,
