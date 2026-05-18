@@ -5,8 +5,8 @@ const HittableList = @import("hittable.zig").HittableList;
 const Point3 = @import("vec3.zig").Point3;
 const Sphere = @import("sphere.zig").Sphere;
 
-// https://raytracing.github.io/books/RayTracingInOneWeekend.html (9)
-// .\zig-out\bin\chapter_9.exe > image.ppm
+// https://raytracing.github.io/books/RayTracingInOneWeekend.html (10)
+// .\zig-out\bin\chapter_10.exe > image.ppm
 pub fn main(init: std.process.Init) !void {
     var buf: [1024]u8 = undefined;
     var writer = std.Io.File.stdout().writer(init.io, &buf);
