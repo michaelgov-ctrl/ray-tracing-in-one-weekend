@@ -158,9 +158,9 @@ pub fn main(init: std.process.Init) !void {
     cam.rng = rng; // this should probably be reduced just to prng...?
 
     cam.aspectRatio = 16.0 / 9.0;
-    cam.imageWidth = 1200;
-    cam.samplesPerPixel = 800;
-    cam.maxDepth = 50;
+    cam.imageWidth = 2400;
+    cam.samplesPerPixel = 1200;
+    cam.maxDepth = 100;
 
     cam.vfov = 20;
     cam.lookfrom = Point3.init(13.0, 2.0, 3.0);
