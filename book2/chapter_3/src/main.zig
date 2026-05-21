@@ -196,8 +196,8 @@ pub fn main(init: std.process.Init) !void {
     cam.rng = rng; // this should probably be reduced just to prng...?
 
     cam.aspectRatio = 16.0 / 9.0;
-    cam.imageWidth = 400;
-    cam.samplesPerPixel = 100;
+    cam.imageWidth = 1200;
+    cam.samplesPerPixel = 600;
     cam.maxDepth = 50;
 
     cam.vfov = 20;
