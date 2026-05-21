@@ -11,6 +11,15 @@ pub const Vec3 = struct {
         return .{ .x = x, .y = y, .z = z };
     }
 
+    pub fn axisInterval(self: Self, n: usize) f64 {
+        return switch (n) {
+            0 => self.x,
+            1 => self.y,
+            2 => self.z,
+            else => unreachable,
+        };
+    }
+
     pub fn neg(self: Self) Vec3 {
         return .{
             .x = -self.x,

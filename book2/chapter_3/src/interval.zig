@@ -40,4 +40,12 @@ pub const Interval = struct {
         if (x > self.max) return self.max;
         return x;
     }
+
+    pub fn expand(self: Self, delta: f64) Self {
+        const padding = delta / 2.0;
+        return Self.init(
+            self.min - padding,
+            self.max - padding,
+        );
+    }
 };
