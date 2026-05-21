@@ -17,6 +17,12 @@ pub const BBox = struct {
         .z = Interval.empty,
     };
 
+    pub const universe = Self{
+        .x = Interval.universe,
+        .y = Interval.universe,
+        .z = Interval.universe,
+    };
+
     pub fn init(x: Interval, y: Interval, z: Interval) Self {
         return .{
             .x = x,
@@ -50,10 +56,18 @@ pub const BBox = struct {
         };
     }
 
+    pub fn longestAxis(self: Self) usize {
+        if (self.x.size() > self.y.size())
+            return if (self.x.size() > self.z.size()) 0 else 2;
+
+        return if (self.y.size() > self.z.size()) 1 else 2;
+    }
+
     pub fn hittable(self: *const Self) h.Hittable {
         return .{
             .ptr = self,
             .hitFn = hit,
+            .boundingBoxFn = boundingBox,
         };
     }
 
@@ -77,8 +91,8 @@ pub const BBox = struct {
             const ax = self.axisInterval(axis);
             const adinv = 1.0 / rayDir.axisInterval(axis);
 
-            const t0 = (ax.min - rayOrig.axis(axis)) * adinv;
-            const t1 = (ax.max - rayOrig.axis(axis)) * adinv;
+            const t0 = (ax.min - rayOrig.axisInterval(axis)) * adinv;
+            const t1 = (ax.max - rayOrig.axisInterval(axis)) * adinv;
 
             if (t0 < t1) {
                 if (t0 > intervalMin) intervalMin = t0;
@@ -92,5 +106,11 @@ pub const BBox = struct {
         }
 
         return true;
+    }
+
+    fn boundingBox(ptr: *const anyopaque) Self {
+        const self: *const Self = @ptrCast(@alignCast(ptr));
+
+        return self.*;
     }
 };

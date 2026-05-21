@@ -2,6 +2,7 @@ const std = @import("std");
 const material = @import("material.zig");
 const vec3 = @import("vec3.zig");
 
+const BVHNode = @import("bvh.zig").BVHNode;
 const Camera = @import("camera.zig").Camera;
 const Color = @import("color.zig").Color;
 const HittableList = @import("hittable.zig").HittableList;
@@ -183,6 +184,12 @@ pub fn main(init: std.process.Init) !void {
         gpa,
         mmSphere.hittable(),
     );
+
+    const bvh = try gpa.create(BVHNode);
+    bvh.* = try BVHNode.initFromList(gpa, world, rng);
+
+    world.clear();
+    try world.add(gpa, bvh.hittable());
 
     var cam: Camera = undefined;
     cam.prng = prng; // keep prng alive for the rng interface
