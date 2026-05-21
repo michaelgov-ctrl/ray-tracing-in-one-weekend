@@ -2,6 +2,7 @@ const h = @import("hittable.zig");
 
 const Interval = @import("interval.zig").Interval;
 const Ray = @import("ray.zig").Ray;
+const Point3 = @import("vec3.zig").Point3;
 
 pub const BBox = struct {
     const Self = @This();
@@ -10,11 +11,33 @@ pub const BBox = struct {
     y: Interval,
     z: Interval,
 
+    pub const empty = Self{
+        .x = Interval.empty,
+        .y = Interval.empty,
+        .z = Interval.empty,
+    };
+
     pub fn init(x: Interval, y: Interval, z: Interval) Self {
         return .{
             .x = x,
             .y = y,
             .z = z,
+        };
+    }
+
+    pub fn fromPoints(a: Point3, b: Point3) Self {
+        return .{
+            .x = Interval.init(@min(a.x, b.x), @max(a.x, b.x)),
+            .y = Interval.init(@min(a.y, b.y), @max(a.y, b.y)),
+            .z = Interval.init(@min(a.z, b.z), @max(a.z, b.z)),
+        };
+    }
+
+    pub fn fromBoxes(a: BBox, b: BBox) Self {
+        return .{
+            .x = Interval.surrounding(a.x, b.x),
+            .y = Interval.surrounding(a.y, b.y),
+            .z = Interval.surrounding(a.z, b.z),
         };
     }
 

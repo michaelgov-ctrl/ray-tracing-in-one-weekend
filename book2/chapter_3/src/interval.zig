@@ -23,6 +23,13 @@ pub const Interval = struct {
         };
     }
 
+    pub fn surrounding(a: Interval, b: Interval) Self {
+        return .{
+            .min = @min(a.min, b.min),
+            .max = @max(a.max, b.max),
+        };
+    }
+
     pub fn size(self: Self) f64 {
         return self.max - self.min;
     }

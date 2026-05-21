@@ -1,5 +1,6 @@
 const std = @import("std");
 
+const BBox = @import("bbox.zig").BBox;
 const Ray = @import("ray.zig").Ray;
 const Vec3 = @import("vec3.zig").Vec3;
 const Point3 = @import("vec3.zig").Point3;
@@ -32,12 +33,17 @@ pub const Hittable = struct {
     const Self = @This();
 
     ptr: *const anyopaque,
+
     hitFn: *const fn (
         ptr: *const anyopaque,
         r: Ray,
         ray_t: Interval,
         rec: *HitRecord,
     ) bool,
+
+    boundingBoxFn: *const fn (
+        ptrh: *const anyopaque,
+    ) BBox,
 
     pub fn hit(
         self: Self,
@@ -52,12 +58,17 @@ pub const Hittable = struct {
             rec,
         );
     }
+
+    pub fn boundingBox(self: Self) BBox {
+        return self.boundingBoxFn(self.ptr);
+    }
 };
 
 pub const HittableList = struct {
     const Self = @This();
 
     objects: std.ArrayList(Hittable),
+    bbox: BBox,
 
     pub fn init(
         allocator: std.mem.Allocator,
@@ -67,6 +78,7 @@ pub const HittableList = struct {
                 allocator,
                 10,
             ),
+            .bbox = BBox.empty,
         };
     }
 
@@ -87,12 +99,14 @@ pub const HittableList = struct {
         obj: Hittable,
     ) !void {
         try self.objects.append(allocator, obj);
+        self.bbox = BBox.fromBoxes(self.bbox, obj.boundingBox());
     }
 
     pub fn hittable(self: *const Self) Hittable {
         return .{
             .ptr = self,
             .hitFn = hit,
+            .boundingBoxFn = boundingBox,
         };
     }
 
@@ -121,5 +135,11 @@ pub const HittableList = struct {
         }
 
         return hit_anything;
+    }
+
+    pub fn boundingBox(ptr: *const anyopaque) BBox {
+        const self: *const Self = @ptrCast(@alignCast(ptr));
+
+        return self.bbox;
     }
 };

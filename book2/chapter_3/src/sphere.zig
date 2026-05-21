@@ -1,3 +1,4 @@
+const BBox = @import("bbox.zig").BBox;
 const HitRecord = @import("hittable.zig").HitRecord;
 const Hittable = @import("hittable.zig").Hittable;
 const Interval = @import("interval.zig").Interval;
@@ -12,18 +13,32 @@ pub const Sphere = struct {
     centerPath: Ray,
     radius: f64,
     mat: Material,
+    bbox: BBox,
 
     pub fn initStationary(
         center: Point3,
         radius: f64,
         mat: Material,
     ) Self {
-        return initMoving(
-            center,
-            center,
+        const rvec = Vec3.init(
             radius,
-            mat,
+            radius,
+            radius,
         );
+
+        return .{
+            .centerPath = Ray.init(
+                center,
+                Vec3.init(0.0, 0.0, 0.0),
+                0,
+            ),
+            .radius = radius,
+            .mat = mat,
+            .bbox = BBox.fromPoints(
+                center.sub(rvec),
+                center.add(rvec),
+            ),
+        };
     }
 
     pub fn initMoving(
@@ -32,14 +47,33 @@ pub const Sphere = struct {
         radius: f64,
         mat: Material,
     ) Self {
+        const rvec = Vec3.init(
+            radius,
+            radius,
+            radius,
+        );
+
+        const center = Ray.init(
+            startCenter,
+            endCenter.sub(startCenter),
+            0,
+        );
+
+        const box1 = BBox.fromPoints(
+            center.at(0.0).sub(rvec),
+            center.at(0.0).add(rvec),
+        );
+
+        const box2 = BBox.fromPoints(
+            center.at(1.0).sub(rvec),
+            center.at(1.0).add(rvec),
+        );
+
         return .{
-            .centerPath = Ray.init(
-                startCenter,
-                endCenter.sub(startCenter),
-                0,
-            ),
+            .centerPath = center,
             .radius = @max(0, radius),
             .mat = mat,
+            .bbox = BBox.fromBoxes(box1, box2),
         };
     }
 
@@ -47,6 +81,7 @@ pub const Sphere = struct {
         return .{
             .ptr = self,
             .hitFn = hit,
+            .boundingBoxFn = boundingBox,
         };
     }
 
@@ -83,5 +118,11 @@ pub const Sphere = struct {
         rec.mat = self.mat;
 
         return true;
+    }
+
+    fn boundingBox(ptr: *const anyopaque) BBox {
+        const self: *const Self = @ptrCast(@alignCast(ptr));
+
+        return self.bbox;
     }
 };
