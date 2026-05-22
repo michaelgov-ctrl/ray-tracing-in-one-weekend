@@ -1,5 +1,6 @@
 const std = @import("std");
 const material = @import("material.zig");
+const tex = @import("texture.zig");
 const vec3 = @import("vec3.zig");
 
 const BVHNode = @import("bvh.zig").BVHNode;
@@ -16,6 +17,14 @@ pub fn main(init: std.process.Init) !void {
     const gpa = init.gpa;
     const io = init.io;
 
+    switch (2) {
+        1 => return bouncingSpheres(gpa, io),
+        2 => return checkeredSpheres(gpa, io),
+        else => unreachable,
+    }
+}
+
+fn checkeredSpheres(gpa: std.mem.Allocator, io: std.Io) !void {
     var buf: [1024]u8 = undefined;
     var writer = std.Io.File.stdout().writer(io, &buf);
     const stdout = &writer.interface;
@@ -27,17 +36,111 @@ pub fn main(init: std.process.Init) !void {
     var world = try HittableList.init(gpa);
     defer world.deinit(gpa);
 
-    const materialGround = material.Lambertian.init(
-        Color.init(0.5, 0.5, 0.5),
+    const checker = try gpa.create(tex.CheckerTexture);
+    checker.* = tex.CheckerTexture.initFromColors(
+        0.32,
+        Color.init(
+            0.2,
+            0.3,
+            0.1,
+        ),
+        Color.init(
+            0.9,
+            0.9,
+            0.9,
+        ),
+    );
+
+    const checkerMaterial = try gpa.create(material.Lambertian);
+    checkerMaterial.* = material.Lambertian.initFromTexture(checker.texture());
+
+    const bottomSphere = try gpa.create(Sphere);
+    bottomSphere.* = Sphere.initStationary(
+        Point3.init(0.0, -10.0, 0.0),
+        10.0,
+        checkerMaterial.material(),
     );
 
     try world.add(
         gpa,
-        Sphere.initStationary(
-            Point3.init(0.0, -1000.0, 0.0),
-            1000.0,
-            materialGround.material(),
-        ).hittable(),
+        bottomSphere.hittable(),
+    );
+
+    const topSphere = try gpa.create(Sphere);
+    topSphere.* = Sphere.initStationary(
+        Point3.init(0.0, 10.0, 0.0),
+        10.0,
+        checkerMaterial.material(),
+    );
+
+    try world.add(
+        gpa,
+        topSphere.hittable(),
+    );
+
+    var cam: Camera = undefined;
+    cam.prng = prng; // keep prng alive for the rng interface
+    cam.rng = rng; // this should probably be reduced just to prng...?
+
+    cam.aspectRatio = 16.0 / 9.0;
+    cam.imageWidth = 400;
+    cam.samplesPerPixel = 100;
+    cam.maxDepth = 50;
+
+    cam.vfov = 20;
+    cam.lookfrom = Point3.init(13.0, 2.0, 3.0);
+    cam.lookat = Point3.init(0.0, 0.0, 0.0);
+    cam.vup = Vec3.init(0.0, 1.0, 0.0);
+
+    cam.defocusAngle = 0.6;
+    cam.focusDist = 10.0;
+
+    try cam.render(
+        stdout,
+        &world.hittable(),
+    );
+}
+
+fn bouncingSpheres(gpa: std.mem.Allocator, io: std.Io) !void {
+    var buf: [1024]u8 = undefined;
+    var writer = std.Io.File.stdout().writer(io, &buf);
+    const stdout = &writer.interface;
+
+    const seed: u64 = @intCast(std.Io.Clock.real.now(io).toMilliseconds());
+    var prng = std.Random.DefaultPrng.init(seed);
+    const rng = prng.random();
+
+    var world = try HittableList.init(gpa);
+    defer world.deinit(gpa);
+
+    const checker = try gpa.create(tex.CheckerTexture);
+    checker.* = tex.CheckerTexture.initFromColors(
+        0.32,
+        Color.init(
+            0.2,
+            0.3,
+            0.1,
+        ),
+        Color.init(
+            0.9,
+            0.9,
+            0.9,
+        ),
+    );
+
+    const materialGround = try gpa.create(material.Lambertian);
+    materialGround.* = material.Lambertian.initFromTexture(checker.texture());
+
+    const primarySphere = try gpa.create(Sphere);
+    primarySphere.* = Sphere.initStationary(
+        Point3.init(0.0, -1000.0, 0.0),
+        1000.0,
+        materialGround.material(),
+    );
+
+    try world.add(
+        gpa,
+        primarySphere.hittable(),
     );
 
     for (0..22) |i| {
@@ -66,8 +169,12 @@ pub fn main(init: std.process.Init) !void {
                     // diffuse
 
                     const albedo = Color.random(rng).mul(Color.random(rng));
+
+                    const solid = try gpa.create(tex.SolidColor);
+                    solid.* = tex.SolidColor.initFromAlbedo(albedo);
+
                     const mat = try gpa.create(material.Lambertian);
-                    mat.* = material.Lambertian.init(albedo);
+                    mat.* = material.Lambertian.initFromTexture(solid.texture());
 
                     const center2 = center.add(
                         Vec3.init(
@@ -150,10 +257,13 @@ pub fn main(init: std.process.Init) !void {
         dmSphere.hittable(),
     );
 
-    const lm = try gpa.create(material.Lambertian);
-    lm.* = material.Lambertian.init(
+    const lmTexture = try gpa.create(tex.SolidColor);
+    lmTexture.* = tex.SolidColor.initFromAlbedo(
         Color.init(0.4, 0.2, 0.1),
     );
+
+    const lm = try gpa.create(material.Lambertian);
+    lm.* = material.Lambertian.initFromTexture(lmTexture.texture());
 
     const lmSphere = try gpa.create(Sphere);
     lmSphere.* = Sphere.initStationary(
@@ -196,9 +306,9 @@ pub fn main(init: std.process.Init) !void {
     cam.rng = rng; // this should probably be reduced just to prng...?
 
     cam.aspectRatio = 16.0 / 9.0;
-    cam.imageWidth = 1200;
-    cam.samplesPerPixel = 600;
-    cam.maxDepth = 50;
+    cam.imageWidth = 600;
+    cam.samplesPerPixel = 200;
+    cam.maxDepth = 25;
 
     cam.vfov = 20;
     cam.lookfrom = Point3.init(13.0, 2.0, 3.0);

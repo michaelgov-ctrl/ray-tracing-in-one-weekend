@@ -2,7 +2,10 @@ const std = @import("std");
 
 const Color = @import("color.zig").Color;
 const HitRecord = @import("hittable.zig").HitRecord;
+const Point3 = @import("vec3.zig").Point3;
 const Ray = @import("ray.zig").Ray;
+const SolidColor = @import("texture.zig").SolidColor;
+const Texture = @import("texture.zig").Texture;
 const Vec3 = @import("vec3.zig").Vec3;
 
 pub const ScatterResult = struct {
@@ -39,11 +42,11 @@ pub const Material = struct {
 pub const Lambertian = struct {
     const Self = @This();
 
-    albedo: Color,
+    texture: Texture,
 
-    pub fn init(albedo: Color) Self {
+    pub fn initFromTexture(texture: Texture) Self {
         return .{
-            .albedo = albedo,
+            .texture = texture,
         };
     }
 
@@ -66,7 +69,11 @@ pub const Lambertian = struct {
         if (scatterDirection.nearZero()) scatterDirection = rec.normal;
 
         return .{
-            .attenuation = self.albedo,
+            .attenuation = self.texture.value(
+                rec.u,
+                rec.v,
+                rec.p,
+            ),
             .scattered = Ray.init(
                 rec.p,
                 scatterDirection,
