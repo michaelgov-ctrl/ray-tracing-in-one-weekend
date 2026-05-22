@@ -1,3 +1,5 @@
+const std = @import("std");
+
 const BBox = @import("bbox.zig").BBox;
 const HitRecord = @import("hittable.zig").HitRecord;
 const Hittable = @import("hittable.zig").Hittable;
@@ -77,6 +79,22 @@ pub const Sphere = struct {
         };
     }
 
+    fn calculateUandV(p: Point3, u: *f64, v: *f64) void {
+        // p: a given point on the sphere of radius one, centered at the origin.
+        // u: returned value [0,1] of angle around the Y axis from X=-1.
+        // v: returned value [0,1] of angle from Y=-1 to Y=+1.
+        //     <1 0 0> yields <0.50 0.50>       <-1  0  0> yields <0.00 0.50>
+        //     <0 1 0> yields <0.50 1.00>       < 0 -1  0> yields <0.50 0.00>
+        //     <0 0 1> yields <0.25 0.50>       < 0  0 -1> yields <0.75 0.50>
+
+        const pi = std.math.pi;
+        const theta = std.math.acos(-p.y);
+        const phi = std.math.atan2(-p.z, p.x) + pi;
+
+        u.* = phi / (2.0 * pi);
+        v.* = theta / pi;
+    }
+
     pub fn hittable(self: *const Self) Hittable {
         return .{
             .ptr = self,
@@ -115,6 +133,7 @@ pub const Sphere = struct {
         rec.p = r.at(root);
         const outwardNormal = rec.p.sub(currentCenter).div(self.radius);
         rec.setFaceNormal(r, outwardNormal);
+        calculateUandV(outwardNormal, &rec.u, &rec.v);
         rec.mat = self.mat;
 
         return true;

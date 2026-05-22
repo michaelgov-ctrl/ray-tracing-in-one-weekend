@@ -14,12 +14,12 @@ const Vec3 = @import("vec3.zig").Vec3;
 // .\zig-out\bin\*.exe > image.ppm
 // zig build -Doptimize=ReleaseFast
 pub fn main(init: std.process.Init) !void {
-    const gpa = init.gpa;
+    const arena = init.arena;
     const io = init.io;
 
     switch (2) {
-        1 => return bouncingSpheres(gpa, io),
-        2 => return checkeredSpheres(gpa, io),
+        1 => return bouncingSpheres(arena.allocator(), io),
+        2 => return checkeredSpheres(arena.allocator(), io),
         else => unreachable,
     }
 }
