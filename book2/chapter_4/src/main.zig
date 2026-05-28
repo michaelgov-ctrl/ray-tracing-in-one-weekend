@@ -8,6 +8,7 @@ const Camera = @import("camera.zig").Camera;
 const Color = @import("color.zig").Color;
 const HittableList = @import("hittable.zig").HittableList;
 const Point3 = @import("vec3.zig").Point3;
+const RtwImage = @import("rtw_image.zig").RtwImage;
 const Sphere = @import("sphere.zig").Sphere;
 const Vec3 = @import("vec3.zig").Vec3;
 
@@ -17,11 +18,63 @@ pub fn main(init: std.process.Init) !void {
     const arena = init.arena;
     const io = init.io;
 
-    switch (2) {
+    switch (3) {
         1 => return bouncingSpheres(arena.allocator(), io),
         2 => return checkeredSpheres(arena.allocator(), io),
+        3 => return earth(arena.allocator(), io),
         else => unreachable,
     }
+}
+
+fn earth(gpa: std.mem.Allocator, io: std.Io) !void {
+    var buf: [1024]u8 = undefined;
+    var writer = std.Io.File.stdout().writer(io, &buf);
+    const stdout = &writer.interface;
+
+    var world = try HittableList.init(gpa);
+    defer world.deinit(gpa);
+
+    const earth_texture = try gpa.create(tex.ImageTexture);
+    earth_texture.* = try tex.ImageTexture.initFromFile(gpa, "earthmap.jpg");
+
+    const earth_surface = try gpa.create(material.Lambertian);
+    earth_surface.* = material.Lambertian.initFromTexture(earth_texture.texture());
+
+    const globe = try gpa.create(Sphere);
+    globe.* = Sphere.initStationary(
+        Point3.init(0.0, 0.0, 0.0),
+        2.0,
+        earth_surface.material(),
+    );
+
+    try world.add(
+        gpa,
+        globe.hittable(),
+    );
+
+    const seed: u64 = @intCast(std.Io.Clock.real.now(io).toMilliseconds());
+
+    var cam: Camera = undefined;
+    cam.prng = std.Random.DefaultPrng.init(seed); // keep prng alive for the rng interface
+    cam.rng = cam.prng.random(); // this should probably be reduced just to prng...?
+
+    cam.aspectRatio = 16.0 / 9.0;
+    cam.imageWidth = 400;
+    cam.samplesPerPixel = 100;
+    cam.maxDepth = 50;
+
+    cam.vfov = 20.0;
+    cam.lookfrom = Point3.init(0.0, 0.0, 12.0);
+    cam.lookat = Point3.init(0.0, 0.0, 0.0);
+    cam.vup = Vec3.init(0.0, 1.0, 0.0);
+
+    cam.defocusAngle = 0.0;
+    cam.focusDist = 10.0;
+
+    try cam.render(
+        stdout,
+        &world.hittable(),
+    );
 }
 
 fn checkeredSpheres(gpa: std.mem.Allocator, io: std.Io) !void {
