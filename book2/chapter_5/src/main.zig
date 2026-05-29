@@ -7,6 +7,7 @@ const BVHNode = @import("bvh.zig").BVHNode;
 const Camera = @import("camera.zig").Camera;
 const Color = @import("color.zig").Color;
 const HittableList = @import("hittable.zig").HittableList;
+const Perlin = @import("perlin.zig").Perlin;
 const Point3 = @import("vec3.zig").Point3;
 const RtwImage = @import("rtw_image.zig").RtwImage;
 const Sphere = @import("sphere.zig").Sphere;
@@ -18,12 +19,79 @@ pub fn main(init: std.process.Init) !void {
     const arena = init.arena;
     const io = init.io;
 
-    switch (3) {
+    switch (4) {
         1 => return bouncingSpheres(arena.allocator(), io),
         2 => return checkeredSpheres(arena.allocator(), io),
         3 => return earth(arena.allocator(), io),
+        4 => return perlinSpheres(arena.allocator(), io),
         else => unreachable,
     }
+}
+
+fn perlinSpheres(gpa: std.mem.Allocator, io: std.Io) !void {
+    var buf: [1024]u8 = undefined;
+    var writer = std.Io.File.stdout().writer(io, &buf);
+    const stdout = &writer.interface;
+
+    const seed: u64 = @intCast(std.Io.Clock.real.now(io).toMilliseconds());
+    var prng = std.Random.DefaultPrng.init(seed);
+
+    var world = try HittableList.init(gpa);
+    defer world.deinit(gpa);
+
+    const noise = Perlin.init(prng.random());
+
+    const noise_texture = try gpa.create(tex.NoiseTexture);
+    noise_texture.* = tex.NoiseTexture.init(noise);
+
+    const noise_material = try gpa.create(material.Lambertian);
+    noise_material.* = material.Lambertian.initFromTexture(noise_texture.texture());
+
+    const bottom_sphere = try gpa.create(Sphere);
+    bottom_sphere.* = Sphere.initStationary(
+        Point3.init(0.0, -1000.0, 0.0),
+        1000.0,
+        noise_material.material(),
+    );
+
+    try world.add(
+        gpa,
+        bottom_sphere.hittable(),
+    );
+
+    const top_sphere = try gpa.create(Sphere);
+    top_sphere.* = Sphere.initStationary(
+        Point3.init(0.0, 2.0, 0.0),
+        2.0,
+        noise_material.material(),
+    );
+
+    try world.add(
+        gpa,
+        top_sphere.hittable(),
+    );
+
+    var cam: Camera = undefined;
+    cam.prng = prng; // keep prng alive for the rng interface
+    cam.rng = cam.prng.random(); // this should probably be reduced just to prng...?
+
+    cam.aspectRatio = 16.0 / 9.0;
+    cam.imageWidth = 800;
+    cam.samplesPerPixel = 200;
+    cam.maxDepth = 100;
+
+    cam.vfov = 20.0;
+    cam.lookfrom = Point3.init(13.0, 2.0, 3.0);
+    cam.lookat = Point3.init(0.0, 0.0, 0.0);
+    cam.vup = Vec3.init(0.0, 1.0, 0.0);
+
+    cam.defocusAngle = 0.0;
+    cam.focusDist = 10.0;
+
+    try cam.render(
+        stdout,
+        &world.hittable(),
+    );
 }
 
 fn earth(gpa: std.mem.Allocator, io: std.Io) !void {

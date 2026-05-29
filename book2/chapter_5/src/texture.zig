@@ -2,6 +2,7 @@ const std = @import("std");
 
 const Color = @import("color.zig").Color;
 const Interval = @import("interval.zig").Interval;
+const Perlin = @import("perlin.zig").Perlin;
 const Point3 = @import("vec3.zig").Point3;
 const RtwImage = @import("rtw_image.zig").RtwImage;
 
@@ -162,5 +163,38 @@ pub const ImageTexture = struct {
         const j: i64 = @intFromFloat(v_clamp * @as(f64, @floatFromInt(self.image.height())));
 
         return self.image.pixelData(i, j);
+    }
+};
+
+pub const NoiseTexture = struct {
+    const Self = @This();
+
+    noise: Perlin,
+
+    pub fn init(noise: Perlin) Self {
+        return .{
+            .noise = noise,
+        };
+    }
+
+    pub fn texture(self: *const Self) Texture {
+        return .{
+            .ptr = self,
+            .valueFn = value,
+        };
+    }
+
+    fn value(
+        ptr: *const anyopaque,
+        u: f64,
+        v: f64,
+        p: Point3,
+    ) Color {
+        const self: *const Self = @ptrCast(@alignCast(ptr));
+
+        _ = u;
+        _ = v;
+
+        return Color.init(1.0, 1.0, 1.0).scale(self.noise.noise(p));
     }
 };
