@@ -170,10 +170,12 @@ pub const NoiseTexture = struct {
     const Self = @This();
 
     noise: Perlin,
+    scale: f64,
 
-    pub fn init(noise: Perlin) Self {
+    pub fn init(noise: Perlin, scale: f64) Self {
         return .{
             .noise = noise,
+            .scale = scale,
         };
     }
 
@@ -195,6 +197,8 @@ pub const NoiseTexture = struct {
         _ = u;
         _ = v;
 
-        return Color.init(1.0, 1.0, 1.0).scale(self.noise.noise(p));
+        return Color.init(0.5, 0.5, 0.5)
+            .scale(1.0 + std.math.sin(self.scale * p.z + 10.0 *
+            self.noise.turbulence(p, 7)));
     }
 };

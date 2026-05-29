@@ -42,7 +42,7 @@ fn perlinSpheres(gpa: std.mem.Allocator, io: std.Io) !void {
     const noise = Perlin.init(prng.random());
 
     const noise_texture = try gpa.create(tex.NoiseTexture);
-    noise_texture.* = tex.NoiseTexture.init(noise);
+    noise_texture.* = tex.NoiseTexture.init(noise, 4.0);
 
     const noise_material = try gpa.create(material.Lambertian);
     noise_material.* = material.Lambertian.initFromTexture(noise_texture.texture());
@@ -61,7 +61,7 @@ fn perlinSpheres(gpa: std.mem.Allocator, io: std.Io) !void {
 
     const top_sphere = try gpa.create(Sphere);
     top_sphere.* = Sphere.initStationary(
-        Point3.init(0.0, 2.0, 0.0),
+        Point3.init(0.0, 2.0, 1.0),
         2.0,
         noise_material.material(),
     );
