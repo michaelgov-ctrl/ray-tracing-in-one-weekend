@@ -9,6 +9,7 @@ const Color = @import("color.zig").Color;
 const HittableList = @import("hittable.zig").HittableList;
 const Perlin = @import("perlin.zig").Perlin;
 const Point3 = @import("vec3.zig").Point3;
+const Quad = @import("quad.zig").Quad;
 const RtwImage = @import("rtw_image.zig").RtwImage;
 const Sphere = @import("sphere.zig").Sphere;
 const Vec3 = @import("vec3.zig").Vec3;
@@ -16,29 +17,139 @@ const Vec3 = @import("vec3.zig").Vec3;
 // .\zig-out\bin\*.exe > image.ppm
 // zig build -Doptimize=ReleaseFast
 pub fn main(init: std.process.Init) !void {
-    _ = init;
+    const arena = init.arena;
+    const io = init.io;
 
-    const BBox = @import("bbox.zig").BBox;
-    const Interval = @import("interval.zig").Interval;
+    switch (5) {
+        1 => return bouncingSpheres(arena.allocator(), io),
+        2 => return checkeredSpheres(arena.allocator(), io),
+        3 => return earth(arena.allocator(), io),
+        4 => return perlinSpheres(arena.allocator(), io),
+        5 => return quads(arena.allocator(), io),
+        else => unreachable,
+    }
+}
 
-    const i = Interval.init(
-        0.000001,
-        0.000002,
+fn quads(gpa: std.mem.Allocator, io: std.Io) !void {
+    var buf: [1024]u8 = undefined;
+    var writer = std.Io.File.stdout().writer(io, &buf);
+    const stdout = &writer.interface;
+
+    var world = try HittableList.init(gpa);
+    defer world.deinit(gpa);
+
+    // Materials
+    const red = material.Lambertian.initFromTexture(
+        tex.SolidColor.initFromAlbedo(
+            Color.init(1.0, 0.2, 0.2),
+        ).texture(),
     );
-    std.debug.print("{any}", .{i.size()});
 
-    const bb = BBox.init(i, i, i);
-    std.debug.print("{any}", .{bb});
-    // const arena = init.arena;
-    // const io = init.io;
+    const green = material.Lambertian.initFromTexture(
+        tex.SolidColor.initFromAlbedo(
+            Color.init(0.2, 1.0, 0.2),
+        ).texture(),
+    );
 
-    // switch (4) {
-    //     1 => return bouncingSpheres(arena.allocator(), io),
-    //     2 => return checkeredSpheres(arena.allocator(), io),
-    //     3 => return earth(arena.allocator(), io),
-    //     4 => return perlinSpheres(arena.allocator(), io),
-    //     else => unreachable,
-    // }
+    const blue = material.Lambertian.initFromTexture(
+        tex.SolidColor.initFromAlbedo(
+            Color.init(0.2, 0.2, 1.0),
+        ).texture(),
+    );
+
+    const orange = material.Lambertian.initFromTexture(
+        tex.SolidColor.initFromAlbedo(
+            Color.init(1.0, 0.5, 0.0),
+        ).texture(),
+    );
+
+    const teal = material.Lambertian.initFromTexture(
+        tex.SolidColor.initFromAlbedo(
+            Color.init(0.2, 0.8, 0.8),
+        ).texture(),
+    );
+
+    // Quads
+    const left_quad = Quad.init(
+        Point3.init(-3.0, -2.0, 5.0),
+        Vec3.init(0.0, 0.0, -4.0),
+        Vec3.init(0.0, 4.0, 0.0),
+        red.material(),
+    );
+    try world.add(
+        gpa,
+        left_quad.hittable(),
+    );
+
+    const back_quad = Quad.init(
+        Point3.init(-2.0, -2.0, 0.0),
+        Vec3.init(4.0, 0.0, 0.0),
+        Vec3.init(0.0, 4.0, 0.0),
+        green.material(),
+    );
+    try world.add(
+        gpa,
+        back_quad.hittable(),
+    );
+
+    const right_quad = Quad.init(
+        Point3.init(3.0, -2.0, 1.0),
+        Vec3.init(0.0, 0.0, 4.0),
+        Vec3.init(0.0, 4.0, 0.0),
+        blue.material(),
+    );
+    try world.add(
+        gpa,
+        right_quad.hittable(),
+    );
+
+    const upper_quad = Quad.init(
+        Point3.init(-2.0, 3.0, 1.0),
+        Vec3.init(4.0, 0.0, 0.0),
+        Vec3.init(0.0, 0.0, 4.0),
+        orange.material(),
+    );
+    try world.add(
+        gpa,
+        upper_quad.hittable(),
+    );
+
+    const lower_quad = Quad.init(
+        Point3.init(-2.0, -3.0, 5.0),
+        Vec3.init(4.0, 0.0, 0.0),
+        Vec3.init(0.0, 0.0, -4.0),
+        teal.material(),
+    );
+    try world.add(
+        gpa,
+        lower_quad.hittable(),
+    );
+
+    // Camera
+    const seed: u64 = @intCast(std.Io.Clock.real.now(io).toMilliseconds());
+    const prng = std.Random.DefaultPrng.init(seed);
+
+    var cam: Camera = undefined;
+    cam.prng = prng; // keep prng alive for the rng interface
+    cam.rng = cam.prng.random(); // this should probably be reduced just to prng...?
+
+    cam.aspectRatio = 1.0;
+    cam.imageWidth = 800;
+    cam.samplesPerPixel = 200;
+    cam.maxDepth = 100;
+
+    cam.vfov = 80.0;
+    cam.lookfrom = Point3.init(0.0, 0.0, 9.0);
+    cam.lookat = Point3.init(0.0, 0.0, 0.0);
+    cam.vup = Vec3.init(0.0, 1.0, 0.0);
+
+    cam.defocusAngle = 0.0;
+    cam.focusDist = 10.0;
+
+    try cam.render(
+        stdout,
+        &world.hittable(),
+    );
 }
 
 fn perlinSpheres(gpa: std.mem.Allocator, io: std.Io) !void {
