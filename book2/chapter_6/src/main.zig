@@ -16,16 +16,29 @@ const Vec3 = @import("vec3.zig").Vec3;
 // .\zig-out\bin\*.exe > image.ppm
 // zig build -Doptimize=ReleaseFast
 pub fn main(init: std.process.Init) !void {
-    const arena = init.arena;
-    const io = init.io;
+    _ = init;
 
-    switch (4) {
-        1 => return bouncingSpheres(arena.allocator(), io),
-        2 => return checkeredSpheres(arena.allocator(), io),
-        3 => return earth(arena.allocator(), io),
-        4 => return perlinSpheres(arena.allocator(), io),
-        else => unreachable,
-    }
+    const BBox = @import("bbox.zig").BBox;
+    const Interval = @import("interval.zig").Interval;
+
+    const i = Interval.init(
+        0.000001,
+        0.000002,
+    );
+    std.debug.print("{any}", .{i.size()});
+
+    const bb = BBox.init(i, i, i);
+    std.debug.print("{any}", .{bb});
+    // const arena = init.arena;
+    // const io = init.io;
+
+    // switch (4) {
+    //     1 => return bouncingSpheres(arena.allocator(), io),
+    //     2 => return checkeredSpheres(arena.allocator(), io),
+    //     3 => return earth(arena.allocator(), io),
+    //     4 => return perlinSpheres(arena.allocator(), io),
+    //     else => unreachable,
+    // }
 }
 
 fn perlinSpheres(gpa: std.mem.Allocator, io: std.Io) !void {

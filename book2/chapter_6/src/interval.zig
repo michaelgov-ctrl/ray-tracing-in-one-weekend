@@ -52,7 +52,7 @@ pub const Interval = struct {
         const padding = delta / 2.0;
         return Self.init(
             self.min - padding,
-            self.max - padding,
+            self.max + padding,
         );
     }
 };

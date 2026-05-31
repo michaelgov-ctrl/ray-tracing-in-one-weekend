@@ -11,24 +11,30 @@ pub const BBox = struct {
     y: Interval,
     z: Interval,
 
-    pub const empty = Self{
-        .x = Interval.empty,
-        .y = Interval.empty,
-        .z = Interval.empty,
-    };
+    pub fn empty() Self {
+        return init(
+            Interval.empty,
+            Interval.empty,
+            Interval.empty,
+        );
+    }
 
-    pub const universe = Self{
-        .x = Interval.universe,
-        .y = Interval.universe,
-        .z = Interval.universe,
-    };
+    pub fn universe() Self {
+        return init(
+            Interval.universe,
+            Interval.universe,
+            Interval.universe,
+        );
+    }
 
     pub fn init(x: Interval, y: Interval, z: Interval) Self {
-        return .{
+        const self = Self{
             .x = x,
             .y = y,
             .z = z,
         };
+
+        return self.padToMinimums();
     }
 
     pub fn fromPoints(a: Point3, b: Point3) Self {
@@ -61,6 +67,20 @@ pub const BBox = struct {
             return if (self.x.size() > self.z.size()) 0 else 2;
 
         return if (self.y.size() > self.z.size()) 1 else 2;
+    }
+
+    fn padToMinimums(self: Self) Self {
+        // Adjust the AABB so that no side is narrower than some delta, padding if necessary.
+        const delta: f64 = 0.0001;
+        const x = if (self.x.size() < delta) self.x.expand(delta) else self.x;
+        const y = if (self.y.size() < delta) self.y.expand(delta) else self.y;
+        const z = if (self.z.size() < delta) self.z.expand(delta) else self.z;
+
+        return .{
+            .x = x,
+            .y = y,
+            .z = z,
+        };
     }
 
     pub fn hittable(self: *const Self) h.Hittable {

@@ -80,7 +80,7 @@ pub const HittableList = struct {
                 allocator,
                 10,
             ),
-            .bbox = BBox.empty,
+            .bbox = BBox.empty(),
         };
     }
 
