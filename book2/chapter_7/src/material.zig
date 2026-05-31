@@ -17,12 +17,20 @@ pub const Material = struct {
     const Self = @This();
 
     ptr: *const anyopaque,
+
     scatterFn: *const fn (
         ptr: *const anyopaque,
         rng: std.Random,
         rIn: Ray,
         rec: HitRecord,
     ) ?ScatterResult,
+
+    emittedFn: *const fn (
+        ptr: *const anyopaque,
+        u: f64,
+        v: f64,
+        p: Point3,
+    ) Color,
 
     pub fn scatter(
         self: Self,
@@ -35,6 +43,20 @@ pub const Material = struct {
             rng,
             rIn,
             rec,
+        );
+    }
+
+    pub fn emitted(
+        self: Self,
+        u: f64,
+        v: f64,
+        p: Point3,
+    ) Color {
+        return self.emittedFn(
+            self.ptr,
+            u,
+            v,
+            p,
         );
     }
 };
@@ -54,6 +76,7 @@ pub const Lambertian = struct {
         return .{
             .ptr = self,
             .scatterFn = scatter,
+            .emittedFn = emitted,
         };
     }
 
@@ -81,6 +104,22 @@ pub const Lambertian = struct {
             ),
         };
     }
+
+    pub fn emitted(
+        ptr: *const anyopaque,
+        u: f64,
+        v: f64,
+        p: Point3,
+    ) Color {
+        const self: *const Self = @ptrCast(@alignCast(ptr));
+
+        _ = self;
+        _ = u;
+        _ = v;
+        _ = p;
+
+        return Color.init(0.0, 0.0, 0.0);
+    }
 };
 
 pub const Metal = struct {
@@ -100,6 +139,7 @@ pub const Metal = struct {
         return .{
             .ptr = self,
             .scatterFn = scatter,
+            .emittedFn = emitted,
         };
     }
 
@@ -124,6 +164,22 @@ pub const Metal = struct {
             ),
         };
     }
+
+    pub fn emitted(
+        ptr: *const anyopaque,
+        u: f64,
+        v: f64,
+        p: Point3,
+    ) Color {
+        const self: *const Self = @ptrCast(@alignCast(ptr));
+
+        _ = self;
+        _ = u;
+        _ = v;
+        _ = p;
+
+        return Color.init(0.0, 0.0, 0.0);
+    }
 };
 
 pub const Dielectric = struct {
@@ -143,6 +199,7 @@ pub const Dielectric = struct {
         return .{
             .ptr = self,
             .scatterFn = scatter,
+            .emittedFn = emitted,
         };
     }
 
@@ -185,5 +242,68 @@ pub const Dielectric = struct {
         var r0 = (1 - refractionIndex) / (1 + refractionIndex);
         r0 = r0 * r0;
         return r0 + (1 - r0) * std.math.pow(f64, 1 - cosine, 5);
+    }
+
+    pub fn emitted(
+        ptr: *const anyopaque,
+        u: f64,
+        v: f64,
+        p: Point3,
+    ) Color {
+        const self: *const Self = @ptrCast(@alignCast(ptr));
+
+        _ = self;
+        _ = u;
+        _ = v;
+        _ = p;
+
+        return Color.init(0.0, 0.0, 0.0);
+    }
+};
+
+pub const DiffuseLight = struct {
+    const Self = @This();
+
+    texture: Texture,
+
+    pub fn initFromTexture(texture: Texture) Self {
+        return .{
+            .texture = texture,
+        };
+    }
+
+    pub fn material(self: *const Self) Material {
+        return .{
+            .ptr = self,
+            .scatterFn = scatter,
+            .emittedFn = emitted,
+        };
+    }
+
+    fn scatter(
+        ptr: *const anyopaque,
+        rng: std.Random,
+        rIn: Ray,
+        rec: HitRecord,
+    ) ?ScatterResult {
+        const self: *const Self = @ptrCast(@alignCast(ptr));
+
+        _ = self;
+        _ = rng;
+        _ = rIn;
+        _ = rec;
+
+        return null;
+    }
+
+    pub fn emitted(
+        ptr: *const anyopaque,
+        u: f64,
+        v: f64,
+        p: Point3,
+    ) Color {
+        const self: *const Self = @ptrCast(@alignCast(ptr));
+
+        return self.texture.value(u, v, p);
     }
 };

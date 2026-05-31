@@ -7,6 +7,14 @@ pub const Ray = struct {
     direction: vec3.Vec3,
     time: f64,
 
+    pub fn empty() Self {
+        return init(
+            vec3.Point3.init(0.0, 0.0, 0.0),
+            vec3.Vec3.init(0.0, 0.0, 0.0),
+            0.0,
+        );
+    }
+
     pub fn init(
         origin: vec3.Point3,
         direction: vec3.Vec3,

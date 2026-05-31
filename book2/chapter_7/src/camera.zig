@@ -38,6 +38,7 @@ pub const Camera = struct {
     pixel100Loc: Point3, // Location of pixel(0, 0)
     pixelDeltaU: Vec3, // Offset to pixel to the right
     pixelDeltaV: Vec3, // Offset to pixel below
+    background: Color, // Scene background color
 
     pub fn render(self: *Self, writer: *std.Io.Writer, world: *const Hittable) !void {
         self.init();
@@ -54,6 +55,7 @@ pub const Camera = struct {
                     const r = self.getRay(i, j);
                     pixelColor = pixelColor.add(rayColor(
                         self.rng,
+                        self.background,
                         r,
                         self.maxDepth,
                         world,
@@ -153,32 +155,66 @@ pub const Camera = struct {
         );
     }
 
-    fn rayColor(rng: std.Random, r: Ray, depth: i64, world: *const Hittable) Color {
+    // fn rayColor(rng: std.Random, r: Ray, depth: i64, world: *const Hittable) Color {
+    //     // if we've exceeded the ray bounce limit, no more light is gathered.
+    //     if (depth <= 0) return Color.init(0.0, 0.0, 0.0);
+
+    //     var rec: HitRecord = undefined;
+
+    //     // ignore hits within 0.001 of the calculated intersection point
+    //     if (world.hit(
+    //         r,
+    //         Interval.init(0.001, std.math.inf(f64)),
+    //         &rec,
+    //     )) {
+    //         if (rec.mat.scatter(rng, r, rec)) |scatter| {
+    //             return scatter.attenuation.mul(
+    //                 rayColor(rng, scatter.scattered, depth - 1, world),
+    //             );
+    //         }
+    //     }
+
+    //     const unitDirection = r.direction.unitVector();
+    //     const a = (unitDirection.y + 1.0) * 0.5;
+
+    //     // lerp
+    //     // blendedValue=(1−a)⋅startValue+a⋅endValue
+    //     return Color.init(1.0, 1.0, 1.0).scale(1.0 - a)
+    //         .add(Color.init(0.5, 0.7, 1.0).scale(a));
+    // }
+
+    fn rayColor(rng: std.Random, background: Color, r: Ray, depth: i64, world: *const Hittable) Color {
         // if we've exceeded the ray bounce limit, no more light is gathered.
         if (depth <= 0) return Color.init(0.0, 0.0, 0.0);
 
         var rec: HitRecord = undefined;
 
-        // ignore hits within 0.001 of the calculated intersection point
-        if (world.hit(
+        // if the ray hits nothing, return the background color.
+        if (!world.hit(
             r,
             Interval.init(0.001, std.math.inf(f64)),
             &rec,
         )) {
-            if (rec.mat.scatter(rng, r, rec)) |scatter| {
-                return scatter.attenuation.mul(
-                    rayColor(rng, scatter.scattered, depth - 1, world),
-                );
-            }
+            return background;
         }
 
-        const unitDirection = r.direction.unitVector();
-        const a = (unitDirection.y + 1.0) * 0.5;
+        const color_from_emission = rec.mat.emitted(rec.u, rec.v, rec.p);
 
-        // lerp
-        // blendedValue=(1−a)⋅startValue+a⋅endValue
-        return Color.init(1.0, 1.0, 1.0).scale(1.0 - a)
-            .add(Color.init(0.5, 0.7, 1.0).scale(a));
+        const scatter_result = rec.mat.scatter(rng, r, rec) orelse {
+            return color_from_emission;
+        };
+
+        const color_from_scatter = scatter_result.attenuation.mul(
+            rayColor(
+                rng,
+                background,
+                scatter_result.scattered,
+                depth - 1,
+                world,
+            ),
+        );
+
+        return color_from_emission.add(color_from_scatter);
     }
 
     fn defocusDiskSample(self: Self) Point3 {

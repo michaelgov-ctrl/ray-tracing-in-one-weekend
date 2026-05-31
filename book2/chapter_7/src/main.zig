@@ -20,14 +20,91 @@ pub fn main(init: std.process.Init) !void {
     const arena = init.arena;
     const io = init.io;
 
-    switch (5) {
+    switch (6) {
         1 => return bouncingSpheres(arena.allocator(), io),
         2 => return checkeredSpheres(arena.allocator(), io),
         3 => return earth(arena.allocator(), io),
         4 => return perlinSpheres(arena.allocator(), io),
         5 => return quads(arena.allocator(), io),
+        6 => return simpleLight(arena.allocator(), io),
         else => unreachable,
     }
+}
+
+fn simpleLight(gpa: std.mem.Allocator, io: std.Io) !void {
+    var buf: [1024]u8 = undefined;
+    var writer = std.Io.File.stdout().writer(io, &buf);
+    const stdout = &writer.interface;
+
+    const seed: u64 = @intCast(std.Io.Clock.real.now(io).toMilliseconds());
+    var prng = std.Random.DefaultPrng.init(seed);
+
+    var world = try HittableList.init(gpa);
+    defer world.deinit(gpa);
+
+    const noise = Perlin.init(prng.random());
+    const pertext = tex.NoiseTexture.init(noise, 4.0);
+
+    const noise_material = material.Lambertian.initFromTexture(pertext.texture());
+
+    const bottom_sphere = Sphere.initStationary(
+        Point3.init(0.0, -1000.0, 0.0),
+        1000.0,
+        noise_material.material(),
+    );
+    try world.add(
+        gpa,
+        bottom_sphere.hittable(),
+    );
+
+    const top_sphere = Sphere.initStationary(
+        Point3.init(0.0, 2.0, 0.0),
+        2.0,
+        noise_material.material(),
+    );
+    try world.add(
+        gpa,
+        top_sphere.hittable(),
+    );
+
+    const diff_light = material.DiffuseLight.initFromTexture(
+        tex.SolidColor.initFromAlbedo(
+            Color.init(4.0, 4.0, 4.0),
+        ).texture(),
+    );
+    const light_quad = Quad.init(
+        Point3.init(3.0, 1.0, -2.0),
+        Vec3.init(2.0, 0.0, 0.0),
+        Vec3.init(0.0, 2.0, 0.0),
+        diff_light.material(),
+    );
+    try world.add(
+        gpa,
+        light_quad.hittable(),
+    );
+
+    var cam: Camera = undefined;
+    cam.prng = std.Random.DefaultPrng.init(seed); // keep prng alive for the rng interface
+    cam.rng = cam.prng.random(); // this should probably be reduced just to prng...?
+
+    cam.aspectRatio = 16.0 / 9.0;
+    cam.imageWidth = 400;
+    cam.samplesPerPixel = 100;
+    cam.maxDepth = 50;
+    cam.background = Color.init(0.0, 0.0, 0.0);
+
+    cam.vfov = 20.0;
+    cam.lookfrom = Point3.init(26.0, 3.0, 6.0);
+    cam.lookat = Point3.init(0.0, 2.0, 0.0);
+    cam.vup = Vec3.init(0.0, 1.0, 0.0);
+
+    cam.defocusAngle = 0.0;
+    cam.focusDist = 10.0;
+
+    try cam.render(
+        stdout,
+        &world.hittable(),
+    );
 }
 
 fn quads(gpa: std.mem.Allocator, io: std.Io) !void {
@@ -137,6 +214,7 @@ fn quads(gpa: std.mem.Allocator, io: std.Io) !void {
     cam.imageWidth = 800;
     cam.samplesPerPixel = 200;
     cam.maxDepth = 100;
+    cam.background = Color.init(0.70, 0.80, 1.00);
 
     cam.vfov = 80.0;
     cam.lookfrom = Point3.init(0.0, 0.0, 9.0);
@@ -203,6 +281,7 @@ fn perlinSpheres(gpa: std.mem.Allocator, io: std.Io) !void {
     cam.imageWidth = 800;
     cam.samplesPerPixel = 200;
     cam.maxDepth = 100;
+    cam.background = Color.init(0.70, 0.80, 1.00);
 
     cam.vfov = 20.0;
     cam.lookfrom = Point3.init(13.0, 2.0, 3.0);
@@ -254,6 +333,7 @@ fn earth(gpa: std.mem.Allocator, io: std.Io) !void {
     cam.imageWidth = 400;
     cam.samplesPerPixel = 100;
     cam.maxDepth = 50;
+    cam.background = Color.init(0.70, 0.80, 1.00);
 
     cam.vfov = 20.0;
     cam.lookfrom = Point3.init(0.0, 0.0, 12.0);
@@ -331,6 +411,7 @@ fn checkeredSpheres(gpa: std.mem.Allocator, io: std.Io) !void {
     cam.imageWidth = 400;
     cam.samplesPerPixel = 100;
     cam.maxDepth = 50;
+    cam.background = Color.init(0.70, 0.80, 1.00);
 
     cam.vfov = 20;
     cam.lookfrom = Point3.init(13.0, 2.0, 3.0);
@@ -554,6 +635,7 @@ fn bouncingSpheres(gpa: std.mem.Allocator, io: std.Io) !void {
     cam.imageWidth = 600;
     cam.samplesPerPixel = 200;
     cam.maxDepth = 25;
+    cam.background = Color.init(0.70, 0.80, 1.00);
 
     cam.vfov = 20;
     cam.lookfrom = Point3.init(13.0, 2.0, 3.0);
