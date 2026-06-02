@@ -1,6 +1,9 @@
+const std = @import("std");
+
 const BBox = @import("bbox.zig").BBox;
 const HitRecord = @import("hittable.zig").HitRecord;
 const Hittable = @import("hittable.zig").Hittable;
+const HittableList = @import("hittable.zig").HittableList;
 const Interval = @import("interval.zig").Interval;
 const Material = @import("material.zig").Material;
 const Point3 = @import("vec3.zig").Point3;
@@ -112,3 +115,49 @@ pub const Quad = struct {
         return self.bbox;
     }
 };
+
+pub fn box(
+    gpa: std.mem.Allocator,
+    sides: *HittableList,
+    a: Point3,
+    b: Point3,
+    mat: Material,
+) !void {
+    // returns a 3D box with size sides, that contains opposite vertices a and b
+    const min = Point3.init(
+        @min(a.x, b.x),
+        @min(a.y, b.y),
+        @min(a.z, b.z),
+    );
+
+    const max = Point3.init(
+        @max(a.x, b.x),
+        @max(a.y, b.y),
+        @max(a.z, b.z),
+    );
+
+    const dx = Vec3.init(max.x - min.x, 0.0, 0.0);
+    const dy = Vec3.init(0.0, max.y - min.y, 0.0);
+    const dz = Vec3.init(0.0, 0.0, max.z - min.z);
+
+    try addQuad(gpa, sides, Point3.init(min.x, min.y, max.z), dx, dy, mat); // front
+    try addQuad(gpa, sides, Point3.init(max.x, min.y, max.z), dz.neg(), dy, mat); // right
+    try addQuad(gpa, sides, Point3.init(max.x, min.y, min.z), dx.neg(), dy, mat); // back
+    try addQuad(gpa, sides, Point3.init(min.x, min.y, min.z), dz, dy, mat); // left
+    try addQuad(gpa, sides, Point3.init(min.x, max.y, max.z), dx, dz.neg(), mat); // top
+    try addQuad(gpa, sides, Point3.init(min.x, min.y, min.z), dx, dz, mat); // bottom
+}
+
+fn addQuad(
+    gpa: std.mem.Allocator,
+    sides: *HittableList,
+    Q: Point3,
+    u: Vec3,
+    v: Vec3,
+    mat: Material,
+) !void {
+    const quad = try gpa.create(Quad);
+    quad.* = Quad.init(Q, u, v, mat);
+
+    try sides.add(gpa, quad.hittable());
+}

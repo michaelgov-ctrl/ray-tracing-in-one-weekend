@@ -1,5 +1,6 @@
 const std = @import("std");
 const material = @import("material.zig");
+const quad = @import("quad.zig");
 const tex = @import("texture.zig");
 const vec3 = @import("vec3.zig");
 
@@ -65,7 +66,7 @@ fn cornellBox(gpa: std.mem.Allocator, io: std.Io) !void {
         ).texture(),
     );
 
-    // Quads
+    // walls
     try world.add(
         gpa,
         Quad.init(
@@ -125,6 +126,27 @@ fn cornellBox(gpa: std.mem.Allocator, io: std.Io) !void {
             white.material(),
         ).hittable(),
     );
+
+    // internal boxes
+    var box1 = try HittableList.init(gpa);
+    try quad.box(
+        gpa,
+        &box1,
+        Point3.init(130.0, 0.0, 65.0),
+        Point3.init(295.0, 165.0, 230.0),
+        white.material(),
+    );
+    try world.add(gpa, box1.hittable());
+
+    var box2 = try HittableList.init(gpa);
+    try quad.box(
+        gpa,
+        &box2,
+        Point3.init(265.0, 0.0, 295.0),
+        Point3.init(430.0, 330.0, 460.0),
+        white.material(),
+    );
+    try world.add(gpa, box2.hittable());
 
     // Camera
     const seed: u64 = @intCast(std.Io.Clock.real.now(io).toMilliseconds());
