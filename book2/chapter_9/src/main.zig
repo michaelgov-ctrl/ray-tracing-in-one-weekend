@@ -1,4 +1,5 @@
 const std = @import("std");
+const hittable = @import("hittable.zig");
 const material = @import("material.zig");
 const quad = @import("quad.zig");
 const tex = @import("texture.zig");
@@ -23,7 +24,7 @@ pub fn main(init: std.process.Init) !void {
     const arena = init.arena;
     const io = init.io;
 
-    switch (7) {
+    switch (8) {
         1 => return bouncingSpheres(arena.allocator(), io),
         2 => return checkeredSpheres(arena.allocator(), io),
         3 => return earth(arena.allocator(), io),
@@ -31,8 +32,200 @@ pub fn main(init: std.process.Init) !void {
         5 => return quads(arena.allocator(), io),
         6 => return simpleLight(arena.allocator(), io),
         7 => return cornellBox(arena.allocator(), io),
+        8 => return cornellSmoke(arena.allocator(), io),
         else => unreachable,
     }
+}
+
+fn cornellSmoke(gpa: std.mem.Allocator, io: std.Io) !void {
+    var buf: [1024]u8 = undefined;
+    var writer = std.Io.File.stdout().writer(io, &buf);
+    const stdout = &writer.interface;
+
+    const seed: u64 = @intCast(std.Io.Clock.real.now(io).toMilliseconds());
+    var prng = std.Random.DefaultPrng.init(seed);
+
+    var world = try HittableList.init(gpa);
+    defer world.deinit(gpa);
+
+    // Materials
+    const red = material.Lambertian.initFromTexture(
+        tex.SolidColor.initFromAlbedo(
+            Color.init(0.65, 0.05, 0.05),
+        ).texture(),
+    );
+
+    const white = material.Lambertian.initFromTexture(
+        tex.SolidColor.initFromAlbedo(
+            Color.init(0.73, 0.73, 0.73),
+        ).texture(),
+    );
+
+    const green = material.Lambertian.initFromTexture(
+        tex.SolidColor.initFromAlbedo(
+            Color.init(0.12, 0.45, 0.15),
+        ).texture(),
+    );
+
+    const light = material.DiffuseLight.initFromTexture(
+        tex.SolidColor.initFromAlbedo(
+            Color.init(7.0, 7.0, 7.0),
+        ).texture(),
+    );
+
+    // walls
+    try world.add(
+        gpa,
+        Quad.init(
+            Point3.init(555.0, 0.0, 0.0),
+            Vec3.init(0.0, 555.0, 0.0),
+            Vec3.init(0.0, 0.0, 555.0),
+            green.material(),
+        ).hittable(),
+    );
+
+    try world.add(
+        gpa,
+        Quad.init(
+            Point3.init(0.0, 0.0, 0.0),
+            Vec3.init(0.0, 555.0, 0.0),
+            Vec3.init(0.0, 0.0, 555.0),
+            red.material(),
+        ).hittable(),
+    );
+
+    try world.add(
+        gpa,
+        Quad.init(
+            Point3.init(113.0, 554.0, 127.0),
+            Vec3.init(330.0, 0.0, 0.0),
+            Vec3.init(0.0, 0.0, 305.0),
+            light.material(),
+        ).hittable(),
+    );
+
+    try world.add(
+        gpa,
+        Quad.init(
+            Point3.init(0.0, 0.0, 0.0),
+            Vec3.init(555.0, 0.0, 0.0),
+            Vec3.init(0.0, 0.0, 555.0),
+            white.material(),
+        ).hittable(),
+    );
+
+    try world.add(
+        gpa,
+        Quad.init(
+            Point3.init(555.0, 555.0, 555.0),
+            Vec3.init(-555.0, 0.0, 0.0),
+            Vec3.init(0.0, 0.0, -555.0),
+            white.material(),
+        ).hittable(),
+    );
+
+    try world.add(
+        gpa,
+        Quad.init(
+            Point3.init(0.0, 0.0, 555.0),
+            Vec3.init(555.0, 0.0, 0.0),
+            Vec3.init(0.0, 555.0, 0.0),
+            white.material(),
+        ).hittable(),
+    );
+
+    // internal boxes
+    const box1 = try gpa.create(HittableList);
+    box1.* = try HittableList.init(gpa);
+
+    try quad.box(
+        gpa,
+        box1,
+        Point3.init(0.0, 0.0, 0.0),
+        Point3.init(165.0, 330.0, 165.0),
+        white.material(),
+    );
+
+    const box1RotateY = try gpa.create(RotateY);
+    box1RotateY.* = RotateY.init(box1.hittable(), 15.0);
+
+    const box1Translate = try gpa.create(Translate);
+    box1Translate.* = Translate.init(
+        box1RotateY.hittable(),
+        Vec3.init(265.0, 0.0, 295.0),
+    );
+
+    const zeroesSolid = try gpa.create(tex.SolidColor);
+    zeroesSolid.* = tex.SolidColor.initFromAlbedo(Color.init(0.0, 0.0, 0.0));
+
+    const box1Medium = try gpa.create(hittable.ConstantMedium);
+    box1Medium.* = try hittable.ConstantMedium.init(
+        gpa,
+        prng.random(),
+        box1Translate.hittable(),
+        0.01,
+        zeroesSolid.texture(),
+    );
+
+    try world.add(gpa, box1Medium.hittable());
+
+    const box2 = try gpa.create(HittableList);
+    box2.* = try HittableList.init(gpa);
+
+    try quad.box(
+        gpa,
+        box2,
+        Point3.init(0.0, 0.0, 0.0),
+        Point3.init(165.0, 165.0, 165.0),
+        white.material(),
+    );
+
+    const box2RotateY = try gpa.create(RotateY);
+    box2RotateY.* = RotateY.init(box2.hittable(), 18.0);
+
+    const box2Translate = try gpa.create(Translate);
+    box2Translate.* = Translate.init(
+        box2RotateY.hittable(),
+        Vec3.init(130.0, 0.0, 65.0),
+    );
+
+    const onesSolid = try gpa.create(tex.SolidColor);
+    onesSolid.* = tex.SolidColor.initFromAlbedo(Color.init(1.0, 1.0, 1.0));
+
+    const box2Medium = try gpa.create(hittable.ConstantMedium);
+    box2Medium.* = try hittable.ConstantMedium.init(
+        gpa,
+        prng.random(),
+        box2Translate.hittable(),
+        0.01,
+        onesSolid.texture(),
+    );
+
+    try world.add(gpa, box2Medium.hittable());
+
+    // camera
+    var cam: Camera = undefined;
+    cam.prng = prng; // keep prng alive for the rng interface
+    cam.rng = cam.prng.random(); // this should probably be reduced just to prng...?
+
+    cam.aspectRatio = 1.0;
+    cam.imageWidth = 600;
+    cam.samplesPerPixel = 200;
+    cam.maxDepth = 50;
+    cam.background = Color.init(0.0, 0.0, 0.0);
+
+    cam.vfov = 40.0;
+    cam.lookfrom = Point3.init(278.0, 278.0, -800.0);
+    cam.lookat = Point3.init(278.0, 278.0, 0.0);
+    cam.vup = Vec3.init(0.0, 1.0, 0.0);
+
+    cam.defocusAngle = 0.0;
+    cam.focusDist = 10.0;
+
+    try cam.render(
+        stdout,
+        &world.hittable(),
+    );
 }
 
 fn cornellBox(gpa: std.mem.Allocator, io: std.Io) !void {

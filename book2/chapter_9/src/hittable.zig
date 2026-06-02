@@ -1,4 +1,5 @@
 const std = @import("std");
+const mat = @import("material.zig");
 
 const BBox = @import("bbox.zig").BBox;
 const Ray = @import("ray.zig").Ray;
@@ -6,6 +7,7 @@ const Vec3 = @import("vec3.zig").Vec3;
 const Point3 = @import("vec3.zig").Point3;
 const Interval = @import("interval.zig").Interval;
 const Material = @import("material.zig").Material;
+const Texture = @import("texture.zig").Texture;
 
 pub const HitRecord = struct {
     const Self = @This();
@@ -311,5 +313,99 @@ pub const RotateY = struct {
         const self: *const Self = @ptrCast(@alignCast(ptr));
 
         return self.bbox;
+    }
+};
+
+pub const ConstantMedium = struct {
+    const Self = @This();
+
+    rng: std.Random,
+    boundary: Hittable,
+    negInvDensity: f64,
+    phaseFunction: Material,
+
+    pub fn init(
+        gpa: std.mem.Allocator,
+        rng: std.Random,
+        boundary: Hittable,
+        density: f64,
+        tex: Texture,
+    ) !Self {
+        const phaseFunction = try gpa.create(mat.Isotropic);
+        phaseFunction.* = mat.Isotropic.init(tex);
+
+        return .{
+            .rng = rng,
+            .boundary = boundary,
+            .negInvDensity = -1.0 / density,
+            .phaseFunction = phaseFunction.material(),
+        };
+    }
+
+    pub fn hittable(self: *const Self) Hittable {
+        return .{
+            .ptr = self,
+            .hitFn = hit,
+            .boundingBoxFn = boundingBox,
+        };
+    }
+
+    pub fn hit(
+        ptr: *const anyopaque,
+        r: Ray,
+        ray_t: Interval,
+        rec: *HitRecord,
+    ) bool {
+        const self: *const Self = @ptrCast(@alignCast(ptr));
+
+        var rec1: HitRecord = undefined;
+        var rec2: HitRecord = undefined;
+
+        if (!self.boundary.hit(
+            r,
+            Interval.universe,
+            &rec1,
+        )) {
+            return false;
+        }
+
+        if (!self.boundary.hit(
+            r,
+            Interval.init(rec1.t + 0.0001, std.math.inf(f64)),
+            &rec2,
+        )) {
+            return false;
+        }
+
+        if (rec1.t < ray_t.min) rec1.t = ray_t.min;
+        if (rec2.t > ray_t.max) rec2.t = ray_t.max;
+
+        if (rec1.t >= rec2.t)
+            return false;
+
+        if (rec1.t < 0) rec1.t = 0;
+
+        const rayLength = r.direction.length();
+        const distanceInsideBoundary = (rec2.t - rec1.t) * rayLength;
+        const random = @max(self.rng.float(f64), 1e-12); // guard against 0.0
+        const hitDistance = self.negInvDensity * @log(random);
+
+        if (hitDistance > distanceInsideBoundary)
+            return false;
+
+        rec.t = rec1.t + hitDistance / rayLength;
+        rec.p = r.at(rec.t);
+
+        rec.normal = Vec3.init(1.0, 0.0, 0.0); // arbitrary
+        rec.frontFace = true; // also arbitrary
+        rec.mat = self.phaseFunction;
+
+        return true;
+    }
+
+    pub fn boundingBox(ptr: *const anyopaque) BBox {
+        const self: *const Self = @ptrCast(@alignCast(ptr));
+
+        return self.boundary.boundingBox();
     }
 };

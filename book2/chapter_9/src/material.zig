@@ -307,3 +307,61 @@ pub const DiffuseLight = struct {
         return self.texture.value(u, v, p);
     }
 };
+
+pub const Isotropic = struct {
+    const Self = @This();
+
+    tex: Texture,
+
+    pub fn init(tex: Texture) Self {
+        return .{
+            .tex = tex,
+        };
+    }
+
+    pub fn material(self: *const Self) Material {
+        return .{
+            .ptr = self,
+            .scatterFn = scatter,
+            .emittedFn = emitted,
+        };
+    }
+
+    fn scatter(
+        ptr: *const anyopaque,
+        rng: std.Random,
+        rIn: Ray,
+        rec: HitRecord,
+    ) ?ScatterResult {
+        const self: *const Self = @ptrCast(@alignCast(ptr));
+
+        return .{
+            .attenuation = self.tex.value(
+                rec.u,
+                rec.v,
+                rec.p,
+            ),
+            .scattered = Ray.init(
+                rec.p,
+                Vec3.randomUnitVector(rng),
+                rIn.time,
+            ),
+        };
+    }
+
+    pub fn emitted(
+        ptr: *const anyopaque,
+        u: f64,
+        v: f64,
+        p: Point3,
+    ) Color {
+        const self: *const Self = @ptrCast(@alignCast(ptr));
+
+        _ = self;
+        _ = u;
+        _ = v;
+        _ = p;
+
+        return Color.init(0.0, 0.0, 0.0);
+    }
+};
