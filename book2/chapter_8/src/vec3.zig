@@ -20,6 +20,21 @@ pub const Vec3 = struct {
         };
     }
 
+    pub fn axisAssign(self: *Self, n: usize, f: f64) void {
+        return switch (n) {
+            0 => {
+                self.x = f;
+            },
+            1 => {
+                self.y = f;
+            },
+            2 => {
+                self.z = f;
+            },
+            else => unreachable,
+        };
+    }
+
     pub fn neg(self: Self) Vec3 {
         return .{
             .x = -self.x,

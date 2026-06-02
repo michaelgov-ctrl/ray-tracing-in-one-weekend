@@ -1,8 +1,9 @@
 const h = @import("hittable.zig");
 
 const Interval = @import("interval.zig").Interval;
-const Ray = @import("ray.zig").Ray;
 const Point3 = @import("vec3.zig").Point3;
+const Ray = @import("ray.zig").Ray;
+const Vec3 = @import("vec3.zig").Vec3;
 
 pub const BBox = struct {
     const Self = @This();
@@ -51,6 +52,14 @@ pub const BBox = struct {
             .y = Interval.surrounding(a.y, b.y),
             .z = Interval.surrounding(a.z, b.z),
         };
+    }
+
+    pub fn addOffset(self: BBox, offset: Vec3) Self {
+        return init(
+            self.x.add(offset.x),
+            self.y.add(offset.y),
+            self.z.add(offset.z),
+        );
     }
 
     pub fn axisInterval(self: Self, n: usize) Interval {

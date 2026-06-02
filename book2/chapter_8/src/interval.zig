@@ -23,6 +23,13 @@ pub const Interval = struct {
         };
     }
 
+    pub fn add(self: Self, displacement: f64) Self {
+        return init(
+            self.min + displacement,
+            self.max + displacement,
+        );
+    }
+
     pub fn surrounding(a: Interval, b: Interval) Self {
         return .{
             .min = @min(a.min, b.min),

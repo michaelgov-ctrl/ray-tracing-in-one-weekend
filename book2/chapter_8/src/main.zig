@@ -11,8 +11,10 @@ const HittableList = @import("hittable.zig").HittableList;
 const Perlin = @import("perlin.zig").Perlin;
 const Point3 = @import("vec3.zig").Point3;
 const Quad = @import("quad.zig").Quad;
+const RotateY = @import("hittable.zig").RotateY;
 const RtwImage = @import("rtw_image.zig").RtwImage;
 const Sphere = @import("sphere.zig").Sphere;
+const Translate = @import("hittable.zig").Translate;
 const Vec3 = @import("vec3.zig").Vec3;
 
 // .\zig-out\bin\*.exe > image.ppm
@@ -128,25 +130,49 @@ fn cornellBox(gpa: std.mem.Allocator, io: std.Io) !void {
     );
 
     // internal boxes
-    var box1 = try HittableList.init(gpa);
-    try quad.box(
-        gpa,
-        &box1,
-        Point3.init(130.0, 0.0, 65.0),
-        Point3.init(295.0, 165.0, 230.0),
-        white.material(),
-    );
-    try world.add(gpa, box1.hittable());
+    const box1 = try gpa.create(HittableList);
+    box1.* = try HittableList.init(gpa);
 
-    var box2 = try HittableList.init(gpa);
     try quad.box(
         gpa,
-        &box2,
-        Point3.init(265.0, 0.0, 295.0),
-        Point3.init(430.0, 330.0, 460.0),
+        box1,
+        Point3.init(0.0, 0.0, 0.0),
+        Point3.init(165.0, 330.0, 165.0),
         white.material(),
     );
-    try world.add(gpa, box2.hittable());
+
+    const box1RotateY = try gpa.create(RotateY);
+    box1RotateY.* = RotateY.init(box1.hittable(), 15.0);
+
+    const box1Translate = try gpa.create(Translate);
+    box1Translate.* = Translate.init(
+        box1RotateY.hittable(),
+        Vec3.init(265.0, 0.0, 295.0),
+    );
+
+    try world.add(gpa, box1Translate.hittable());
+
+    const box2 = try gpa.create(HittableList);
+    box2.* = try HittableList.init(gpa);
+
+    try quad.box(
+        gpa,
+        box2,
+        Point3.init(0.0, 0.0, 0.0),
+        Point3.init(165.0, 165.0, 165.0),
+        white.material(),
+    );
+
+    const box2RotateY = try gpa.create(RotateY);
+    box2RotateY.* = RotateY.init(box2.hittable(), 18.0);
+
+    const box2Translate = try gpa.create(Translate);
+    box2Translate.* = Translate.init(
+        box2RotateY.hittable(),
+        Vec3.init(130.0, 0.0, 65.0),
+    );
+
+    try world.add(gpa, box2Translate.hittable());
 
     // Camera
     const seed: u64 = @intCast(std.Io.Clock.real.now(io).toMilliseconds());
