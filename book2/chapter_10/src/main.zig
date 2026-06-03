@@ -24,7 +24,7 @@ pub fn main(init: std.process.Init) !void {
     const arena = init.arena;
     const io = init.io;
 
-    switch (8) {
+    switch (9) {
         1 => return bouncingSpheres(arena.allocator(), io),
         2 => return checkeredSpheres(arena.allocator(), io),
         3 => return earth(arena.allocator(), io),
@@ -33,8 +33,115 @@ pub fn main(init: std.process.Init) !void {
         6 => return simpleLight(arena.allocator(), io),
         7 => return cornellBox(arena.allocator(), io),
         8 => return cornellSmoke(arena.allocator(), io),
+        9 => return finalScene(
+            arena.allocator(),
+            io,
+            400,
+            250,
+            4,
+        ),
         else => unreachable,
     }
+}
+
+fn finalScene(
+    gpa: std.mem.Allocator,
+    io: std.Io,
+    imageWidth: usize,
+    samplesPerPixel: usize,
+    maxDepth: i64,
+) !void {
+    var buf: [1024]u8 = undefined;
+    var writer = std.Io.File.stdout().writer(io, &buf);
+    const stdout = &writer.interface;
+
+    const seed: u64 = @intCast(std.Io.Clock.real.now(io).toMilliseconds());
+    var prng = std.Random.DefaultPrng.init(seed);
+    const rng = prng.random();
+
+    var world = try HittableList.init(gpa);
+    defer world.deinit(gpa);
+
+    // ground
+    var boxes1 = try HittableList.init(gpa);
+    const solidGreen = tex.SolidColor.initFromAlbedo(
+        Color.init(0.48, 0.83, 0.53),
+    );
+    const ground = material.Lambertian.initFromTexture(solidGreen.texture());
+
+    const boxesPerSide = 20;
+    for (0..boxesPerSide) |i| {
+        for (0..boxesPerSide) |j| {
+            const di: f64 = @floatFromInt(i);
+            const dj: f64 = @floatFromInt(j);
+
+            const w = 100.0;
+            const x0 = -1000.0 + di * w;
+            const z0 = -1000.0 + dj * w;
+            const y0 = 0.0;
+            const x1 = x0 + w;
+            const y1 = vec3.randomDouble(rng, 1.0, 101.0);
+            const z1 = z0 + w;
+
+            const box = try gpa.create(HittableList);
+            box.* = try HittableList.init(gpa);
+
+            try quad.box(
+                gpa,
+                box,
+                Point3.init(x0, y0, z0),
+                Point3.init(x1, y1, z1),
+                ground.material(),
+            );
+
+            try boxes1.add(gpa, box.hittable());
+        }
+    }
+
+    const bvh = try gpa.create(BVHNode);
+    bvh.* = try BVHNode.initFromList(gpa, boxes1, rng);
+
+    try world.add(gpa, bvh.hittable());
+
+    const light = material.DiffuseLight.initFromTexture(
+        tex.SolidColor.initFromAlbedo(
+            Color.init(7.0, 7.0, 7.0),
+        ).texture(),
+    );
+
+    try world.add(
+        gpa,
+        Quad.init(
+            Point3.init(123.0, 554.0, 147.0),
+            Vec3.init(300.0, 0.0, 0.0),
+            Vec3.init(0.0, 0.0, 265.0),
+            light.material(),
+        ).hittable(),
+    );
+
+    // camera
+    var cam: Camera = undefined;
+    cam.prng = prng; // keep prng alive for the rng interface
+    cam.rng = cam.prng.random(); // this should probably be reduced just to prng...?
+
+    cam.aspectRatio = 1.0;
+    cam.imageWidth = imageWidth;
+    cam.samplesPerPixel = samplesPerPixel;
+    cam.maxDepth = maxDepth;
+    cam.background = Color.init(0.0, 0.0, 0.0);
+
+    cam.vfov = 40.0;
+    cam.lookfrom = Point3.init(478.0, 278.0, -600.0);
+    cam.lookat = Point3.init(278.0, 278.0, 0.0);
+    cam.vup = Vec3.init(0.0, 1.0, 0.0);
+
+    cam.defocusAngle = 0.0;
+    cam.focusDist = 10.0;
+
+    try cam.render(
+        stdout,
+        &world.hittable(),
+    );
 }
 
 fn cornellSmoke(gpa: std.mem.Allocator, io: std.Io) !void {

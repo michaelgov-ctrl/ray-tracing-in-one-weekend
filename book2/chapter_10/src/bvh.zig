@@ -33,7 +33,7 @@ pub const BVHNode = struct {
         start: usize,
         end: usize,
     ) !Self {
-        var bbox = BBox.empty;
+        var bbox = BBox.empty();
         for (start..end) |i| {
             bbox = BBox.fromBoxes(bbox, objects[i].boundingBox());
         }
