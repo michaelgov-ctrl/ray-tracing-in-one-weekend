@@ -24,7 +24,7 @@ pub fn main(init: std.process.Init) !void {
     const arena = init.arena;
     const io = init.io;
 
-    switch (9) {
+    switch (10) {
         1 => return bouncingSpheres(arena.allocator(), io),
         2 => return checkeredSpheres(arena.allocator(), io),
         3 => return earth(arena.allocator(), io),
@@ -39,6 +39,13 @@ pub fn main(init: std.process.Init) !void {
             400,
             250,
             4,
+        ),
+        10 => return finalScene(
+            arena.allocator(),
+            io,
+            800,
+            10000,
+            40,
         ),
         else => unreachable,
     }
@@ -98,10 +105,10 @@ fn finalScene(
         }
     }
 
-    const bvh = try gpa.create(BVHNode);
-    bvh.* = try BVHNode.initFromList(gpa, boxes1, rng);
+    const groundbvh = try gpa.create(BVHNode);
+    groundbvh.* = try BVHNode.initFromList(gpa, boxes1, rng);
 
-    try world.add(gpa, bvh.hittable());
+    try world.add(gpa, groundbvh.hittable());
 
     const light = material.DiffuseLight.initFromTexture(
         tex.SolidColor.initFromAlbedo(
@@ -155,6 +162,107 @@ fn finalScene(
             met.material(),
         ).hittable(),
     );
+
+    const boundary1 = Sphere.initStationary(
+        Point3.init(360.0, 150.0, 145.0),
+        70.0,
+        dielec.material(),
+    );
+    try world.add(gpa, boundary1.hittable());
+
+    const boundarySolid1 = tex.SolidColor.initFromAlbedo(
+        Color.init(0.2, 0.4, 0.9),
+    );
+
+    const medium1 = try hittable.ConstantMedium.init(
+        gpa,
+        rng,
+        boundary1.hittable(),
+        0.2,
+        boundarySolid1.texture(),
+    );
+    try world.add(gpa, medium1.hittable());
+
+    const boundary2 = Sphere.initStationary(
+        Point3.init(0.0, 0.0, 0.0),
+        5000.0,
+        dielec.material(),
+    );
+
+    const boundarySolid2 = tex.SolidColor.initFromAlbedo(
+        Color.init(1.0, 1.0, 1.0),
+    );
+
+    const medium2 = try hittable.ConstantMedium.init(
+        gpa,
+        rng,
+        boundary2.hittable(),
+        0.0001,
+        boundarySolid2.texture(),
+    );
+    try world.add(gpa, medium2.hittable());
+
+    const etex = try tex.ImageTexture.initFromFile(
+        gpa,
+        "earthmap.jpg",
+    );
+    const emat = material.Lambertian.initFromTexture(etex.texture());
+    try world.add(
+        gpa,
+        Sphere.initStationary(
+            Point3.init(400.0, 200.0, 400.0),
+            100.0,
+            emat.material(),
+        ).hittable(),
+    );
+
+    const noise = Perlin.init(prng.random());
+    const pertext = tex.NoiseTexture.init(noise, 0.2);
+    const pertextLambertian = material.Lambertian.initFromTexture(
+        pertext.texture(),
+    );
+    try world.add(
+        gpa,
+        Sphere.initStationary(
+            Point3.init(220.0, 280.0, 300.0),
+            80.0,
+            pertextLambertian.material(),
+        ).hittable(),
+    );
+
+    var boxes2 = try HittableList.init(gpa);
+    const solidWhite = tex.SolidColor.initFromAlbedo(
+        Color.init(0.73, 0.73, 0.73),
+    );
+    const cloud = material.Lambertian.initFromTexture(solidWhite.texture());
+
+    const ns = 1000;
+    for (0..ns) |_| {
+        const tinySphere = try gpa.create(Sphere);
+        tinySphere.* = Sphere.initStationary(
+            Point3.randomRange(rng, 0.0, 165.0),
+            10.0,
+            cloud.material(),
+        );
+        try boxes2.add(
+            gpa,
+            tinySphere.hittable(),
+        );
+    }
+
+    const cloudbvh = try gpa.create(BVHNode);
+    cloudbvh.* = try BVHNode.initFromList(gpa, boxes2, rng);
+
+    const boxes2RotateY = try gpa.create(RotateY);
+    boxes2RotateY.* = RotateY.init(cloudbvh.hittable(), 15.0);
+
+    const boxes2Translate = try gpa.create(Translate);
+    boxes2Translate.* = Translate.init(
+        boxes2RotateY.hittable(),
+        Vec3.init(-100.0, 270.0, 395.0),
+    );
+
+    try world.add(gpa, boxes2Translate.hittable());
 
     // camera
     var cam: Camera = undefined;
