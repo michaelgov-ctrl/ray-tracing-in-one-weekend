@@ -155,34 +155,6 @@ pub const Camera = struct {
         );
     }
 
-    // fn rayColor(rng: std.Random, r: Ray, depth: i64, world: *const Hittable) Color {
-    //     // if we've exceeded the ray bounce limit, no more light is gathered.
-    //     if (depth <= 0) return Color.init(0.0, 0.0, 0.0);
-
-    //     var rec: HitRecord = undefined;
-
-    //     // ignore hits within 0.001 of the calculated intersection point
-    //     if (world.hit(
-    //         r,
-    //         Interval.init(0.001, std.math.inf(f64)),
-    //         &rec,
-    //     )) {
-    //         if (rec.mat.scatter(rng, r, rec)) |scatter| {
-    //             return scatter.attenuation.mul(
-    //                 rayColor(rng, scatter.scattered, depth - 1, world),
-    //             );
-    //         }
-    //     }
-
-    //     const unitDirection = r.direction.unitVector();
-    //     const a = (unitDirection.y + 1.0) * 0.5;
-
-    //     // lerp
-    //     // blendedValue=(1−a)⋅startValue+a⋅endValue
-    //     return Color.init(1.0, 1.0, 1.0).scale(1.0 - a)
-    //         .add(Color.init(0.5, 0.7, 1.0).scale(a));
-    // }
-
     fn rayColor(rng: std.Random, background: Color, r: Ray, depth: i64, world: *const Hittable) Color {
         // if we've exceeded the ray bounce limit, no more light is gathered.
         if (depth <= 0) return Color.init(0.0, 0.0, 0.0);
