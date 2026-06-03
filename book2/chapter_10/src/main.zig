@@ -119,6 +119,43 @@ fn finalScene(
         ).hittable(),
     );
 
+    const center1 = Point3.init(400.0, 400.0, 200.0);
+    const center2 = center1.add(Vec3.init(30.0, 0.0, 0.0));
+    const solidColor = tex.SolidColor.initFromAlbedo(
+        Color.init(0.7, 0.3, 0.1),
+    );
+    const lamber = material.Lambertian.initFromTexture(solidColor.texture());
+
+    try world.add(
+        gpa,
+        Sphere.initMoving(
+            center1,
+            center2,
+            50.0,
+            lamber.material(),
+        ).hittable(),
+    );
+
+    const dielec = material.Dielectric.init(1.5);
+    try world.add(
+        gpa,
+        Sphere.initStationary(
+            Point3.init(260.0, 150.0, 45.0),
+            50.0,
+            dielec.material(),
+        ).hittable(),
+    );
+
+    const met = material.Metal.init(Color.init(0.8, 0.8, 0.9), 1.0);
+    try world.add(
+        gpa,
+        Sphere.initStationary(
+            Point3.init(0.0, 150.0, 145.0),
+            50.0,
+            met.material(),
+        ).hittable(),
+    );
+
     // camera
     var cam: Camera = undefined;
     cam.prng = prng; // keep prng alive for the rng interface
