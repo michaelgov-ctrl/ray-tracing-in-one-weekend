@@ -23,8 +23,8 @@ pub fn main(init: std.process.Init) !void {
         arena.allocator(),
         io,
         800,
-        10000,
-        40,
+        20000,
+        120,
     );
 }
 
